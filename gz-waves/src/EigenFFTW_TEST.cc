@@ -24,6 +24,9 @@
 #include <memory>
 #include <string>
 
+using Eigen::ArrayXXcd;
+using Eigen::ArrayXcd;
+
 namespace Eigen
 {
   typedef Eigen::Array<
@@ -124,7 +127,7 @@ TEST(EigenFFWT, DFT_C2C_1D)
     }
   }
 
-  { // Eigen::ArrayXcd
+  { // using Eigen::ArrayXcd
     Eigen::ArrayXcd in = Eigen::ArrayXcd::Zero(n);
     Eigen::ArrayXcd out = Eigen::ArrayXcd::Zero(n);
 

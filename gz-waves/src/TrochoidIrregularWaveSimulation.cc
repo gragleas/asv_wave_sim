@@ -15,8 +15,6 @@
 
 #include "gz/waves/TrochoidIrregularWaveSimulation.hh"
 
-#include <Eigen/Dense>
-
 #include <vector>
 
 #include "gz/waves/Types.hh"
@@ -239,13 +237,6 @@ TrochoidIrregularWaveSimulation::TrochoidIrregularWaveSimulation(
 void TrochoidIrregularWaveSimulation::SetWindVelocity(double ux, double uy)
 {
   impl_->SetWindVelocity(ux, uy);
-}
-
-//////////////////////////////////////////////////
-void TrochoidIrregularWaveSimulation::SetSteepness(
-    double /*value*/)
-{
-  /// \todo(srmainwaring) IMPLEMENT
 }
 
 //////////////////////////////////////////////////

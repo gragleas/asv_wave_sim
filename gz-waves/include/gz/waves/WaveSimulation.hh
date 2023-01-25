@@ -18,9 +18,9 @@
 
 #include <Eigen/Dense>
 
-#include <memory>
-
 #include "gz/waves/Types.hh"
+
+using Eigen::ArrayXXd;
 
 namespace gz
 {
@@ -66,9 +66,6 @@ class IWaveSimulation
 
   /// \todo(srmainwaring) deprecate or move?
   virtual void SetWindVelocity(double ux, double uy) = 0;
-
-  /// \todo(srmainwaring) deprecate or move?
-  virtual void SetSteepness(double value) = 0;
 
   /// \todo(srmainwaring) deprecate or move?
   virtual void SetTime(double value) = 0;

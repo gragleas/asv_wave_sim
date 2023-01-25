@@ -41,7 +41,7 @@ namespace waves
 class TriangulatedGrid::Private {
  public:
   ~Private();
-  Private(Index nx, Index ny, double lx, double ly);
+  Private(Index num_segments, double length);
   void CreateMesh();
   void CreateTriangulation();
 
@@ -83,10 +83,8 @@ class TriangulatedGrid::Private {
   typedef Triangulation::Face Face;
 
   // Dimensions
-  Index nx_;
-  Index ny_;
-  double lx_;
-  double ly_;
+  Index num_segments_;
+  double length_;
 
   // Mesh
   cgal::Point3              origin_;
@@ -104,25 +102,22 @@ TriangulatedGrid::Private::~Private() {
 }
 
 //////////////////////////////////////////////////
-TriangulatedGrid::Private::Private(Index nx, Index ny, double lx, double ly) :
-  nx_(nx), ny_(ny), lx_(lx), ly_(ly), origin_(CGAL::ORIGIN) {
+TriangulatedGrid::Private::Private(Index num_segments, double length) :
+  num_segments_(num_segments), length_(length), origin_(CGAL::ORIGIN) {
 }
 
 //////////////////////////////////////////////////
 void TriangulatedGrid::Private::CreateMesh() {
-  double dlx = lx_ / nx_;
-  double dly = ly_ / ny_;
-  double lxm = - lx_ / 2.0;
-  double lym = - ly_ / 2.0;
-  const Index nx_plus1 = nx_ + 1;
-  const Index ny_plus1 = ny_ + 1;
+  double dl = length_ / num_segments_;
+  double lm = - length_ / 2.0;
+  const Index nplus1 = num_segments_ + 1;
 
-  // Points - (nx_+1) points_ in each row / column
-  for (int64_t iy=0; iy <= ny_; ++iy) {
-    double py = iy * dly + lym;
-    for (int64_t ix=0; ix <= nx_; ++ix) {
+  // Points - (num_segments_+1) points_ in each row / column
+  for (int64_t iy=0; iy <= num_segments_; ++iy) {
+    double py = iy * dl + lm;
+    for (int64_t ix=0; ix <= num_segments_; ++ix) {
       // Vertex position
-      double px = ix * dlx + lxm;
+      double px = ix * dl + lm;
       cgal::Point3 point(px, py, 0.0);
       points_.push_back(point);
     }
@@ -131,13 +126,13 @@ void TriangulatedGrid::Private::CreateMesh() {
   points0_ = points_;
 
   // Face indices
-  for (int64_t iy=0; iy < ny_; ++iy) {
-    for (int64_t ix=0; ix < nx_; ++ix) {
+  for (int64_t iy=0; iy < num_segments_; ++iy) {
+    for (int64_t ix=0; ix < num_segments_; ++ix) {
       // Get the points in the cell coordinates
-      int64_t idx0 = iy * nx_plus1 + ix;
-      int64_t idx1 = iy * nx_plus1 + ix + 1;
-      int64_t idx2 = (iy+1) * nx_plus1 + ix + 1;
-      int64_t idx3 = (iy+1) * nx_plus1 + ix;
+      int64_t idx0 = iy * nplus1 + ix;
+      int64_t idx1 = iy * nplus1 + ix + 1;
+      int64_t idx2 = (iy+1) * nplus1 + ix + 1;
+      int64_t idx3 = (iy+1) * nplus1 + ix;
 
       // Face indices
       indices_.push_back({ idx0, idx1, idx2 });
@@ -146,24 +141,23 @@ void TriangulatedGrid::Private::CreateMesh() {
   }
 
   // Infinite indices (follow edges counter clockwise around grid)
-  infinite_indices_.resize(2*nx_ + 2*ny_);
-  for (int64_t ix=0; ix < nx_; ++ix) {
-    // bottom (0..nx-1)
-    int64_t idx = ix;
-    infinite_indices_[ix] = { idx, idx + 1 };
+  infinite_indices_.resize(4*num_segments_);
+  for (int64_t i=0; i < num_segments_; ++i) {
+    // bottom
+    int64_t idx = i;
+    infinite_indices_[i] = { idx, idx+1 };
 
-    // top (nx+ny..2*nx+ny-1)
-    idx = ny_ * nx_plus1 + ix;
-    infinite_indices_[2*nx_ + ny_ - 1 - ix] = { idx + 1, idx };
-  }
-  for (int64_t iy=0; iy < ny_; ++iy) {
-    // right (nx..nx+ny-1)
-    int64_t idx = iy * nx_plus1 + nx_;
-    infinite_indices_[nx_ + iy] = { idx, idx + nx_plus1 };
+    // right
+    idx = i * nplus1 + num_segments_;
+    infinite_indices_[num_segments_+i] = { idx, idx+nplus1 };
 
-    // left (2*nx+ny..2*nx+2*ny-1)
-    idx = iy * nx_plus1;
-    infinite_indices_[2*nx_ + 2*ny_ - 1 - iy] = { idx + nx_plus1, idx };
+    // top
+    idx = num_segments_ * nplus1 + i;
+    infinite_indices_[3*num_segments_-1-i] = { idx+1, idx };
+
+    // left
+    idx = i * nplus1;
+    infinite_indices_[4*num_segments_-1-i] = { idx+nplus1, idx };
   }
 }
 
@@ -203,12 +197,12 @@ void TriangulatedGrid::Private::CreateTriangulation() {
   // std::cout << "set vertex info: " << timer.time() << " s" << "\n";
 
   // Constraint indices
-  const Index nx_plus1 = nx_ + 1;
+  const Index nplus1 = num_segments_ + 1;
   std::vector<std::pair < size_t, int64_t>> cindices;
-  for (int64_t iy=0; iy < ny_; ++iy) {
-    for (int64_t ix=0; ix < nx_; ++ix) {
-      int64_t idx1 = iy * nx_plus1 + ix;
-      int64_t idx2 = (iy + 1) * nx_plus1 + (ix + 1);
+  for (int64_t iy=0; iy < num_segments_; ++iy) {
+    for (int64_t ix=0; ix < num_segments_; ++ix) {
+      int64_t idx1 = iy * nplus1 + ix;
+      int64_t idx2 = (iy + 1) * nplus1 + (ix + 1);
       cindices.push_back(std::make_pair(idx1, idx2));
     }
   }
@@ -450,10 +444,8 @@ bool TriangulatedGrid::Private::IsValid(bool verbose) const {
 
 //////////////////////////////////////////////////
 void TriangulatedGrid::Private::DebugPrintMesh() const {
-  std::cout << "nx: " << nx_ << "\n";
-  std::cout << "ny: " << ny_ << "\n";
-  std::cout << "lx: " << lx_ << "\n";
-  std::cout << "ly: " << ly_ << "\n";
+  std::cout << "num_segments: " << num_segments_ << "\n";
+  std::cout << "length: " << length_ << "\n";
 
   std::cout << "points: [" << points_.size() << "]" << "\n";
   for (auto&& p : points_) {
@@ -568,34 +560,30 @@ void TriangulatedGrid::Private::UpdatePoints(const cgal::Mesh& from) {
 
 //////////////////////////////////////////////////
 //////////////////////////////////////////////////
-TriangulatedGrid::~TriangulatedGrid()
+TriangulatedGrid::~TriangulatedGrid() {
+}
+
+//////////////////////////////////////////////////
+TriangulatedGrid::TriangulatedGrid(Index num_segments, double length) :
+  impl_(new TriangulatedGrid::Private(num_segments, length))
 {
 }
 
 //////////////////////////////////////////////////
-TriangulatedGrid::TriangulatedGrid(Index nx, Index ny, double lx, double ly) :
-  impl_(new TriangulatedGrid::Private(nx, ny, lx, ly))
-{
-}
-
-//////////////////////////////////////////////////
-void TriangulatedGrid::CreateMesh()
-{
+void TriangulatedGrid::CreateMesh() {
   impl_->CreateMesh();
 }
 
 //////////////////////////////////////////////////
-void TriangulatedGrid::CreateTriangulation()
-{
+void TriangulatedGrid::CreateTriangulation() {
   impl_->CreateTriangulation();
 }
 
 //////////////////////////////////////////////////
 std::unique_ptr<TriangulatedGrid> TriangulatedGrid::Create(
-    Index nx, Index ny, double lx, double ly)
-{
+    Index num_segments, double length) {
   std::unique_ptr<TriangulatedGrid> instance =
-      std::make_unique<TriangulatedGrid>(nx, ny, lx, ly);
+      std::make_unique<TriangulatedGrid>(num_segments, length);
   instance->CreateMesh();
   instance->CreateTriangulation();
   return instance;
@@ -603,102 +591,76 @@ std::unique_ptr<TriangulatedGrid> TriangulatedGrid::Create(
 
 //////////////////////////////////////////////////
 bool TriangulatedGrid::Locate(const cgal::Point3& query,
-    int64_t& faceIndex) const
-{
+    int64_t& faceIndex) const {
   return impl_->Locate(query, faceIndex);
 }
 
 //////////////////////////////////////////////////
 bool TriangulatedGrid::Height(const cgal::Point3& query,
-    double& height) const
-{
+    double& height) const {
   return impl_->Height(query, height);
 }
 
 //////////////////////////////////////////////////
 bool TriangulatedGrid::Height(const std::vector<cgal::Point3>& queries,
-    std::vector<double>& heights) const
-{
+    std::vector<double>& heights) const {
   return impl_->Height(queries, heights);
 }
 
 //////////////////////////////////////////////////
-bool TriangulatedGrid::Interpolate(TriangulatedGrid& patch) const
-{
+bool TriangulatedGrid::Interpolate(TriangulatedGrid& patch) const {
   return impl_->Interpolate(patch);
 }
 
 //////////////////////////////////////////////////
-const Point3Range& TriangulatedGrid::Points() const
-{
+const Point3Range& TriangulatedGrid::Points() const {
   return impl_->Points();
 }
 
 //////////////////////////////////////////////////
-const Index3Range& TriangulatedGrid::Indices() const
-{
+const Index3Range& TriangulatedGrid::Indices() const {
   return impl_->Indices();
 }
 
 //////////////////////////////////////////////////
-const cgal::Point3& TriangulatedGrid::Origin() const
-{
+const cgal::Point3& TriangulatedGrid::Origin() const {
   return impl_->Origin();
 }
 
 //////////////////////////////////////////////////
-void TriangulatedGrid::ApplyPose(const gz::math::Pose3d& pose)
-{
+void TriangulatedGrid::ApplyPose(const gz::math::Pose3d& pose) {
   impl_->ApplyPose(pose);
 }
 
 //////////////////////////////////////////////////
-bool TriangulatedGrid::IsValid(bool verbose) const
-{
+bool TriangulatedGrid::IsValid(bool verbose) const {
   return impl_->IsValid(verbose);
 }
 
 //////////////////////////////////////////////////
-void TriangulatedGrid::DebugPrintMesh() const
-{
+void TriangulatedGrid::DebugPrintMesh() const {
   impl_->DebugPrintMesh();
 }
 
 //////////////////////////////////////////////////
-void TriangulatedGrid::DebugPrintTriangulation() const
-{
+void TriangulatedGrid::DebugPrintTriangulation() const {
   impl_->DebugPrintTriangulation();
 }
 
 //////////////////////////////////////////////////
-void TriangulatedGrid::UpdatePoints(const std::vector<cgal::Point3>& from)
-{
+void TriangulatedGrid::UpdatePoints(const std::vector<cgal::Point3>& from) {
   impl_->UpdatePoints(from);
 }
 
 //////////////////////////////////////////////////
 void TriangulatedGrid::UpdatePoints(
-    const std::vector<gz::math::Vector3d>& from)
-{
+    const std::vector<gz::math::Vector3d>& from) {
   impl_->UpdatePoints(from);
 }
 
 //////////////////////////////////////////////////
-void TriangulatedGrid::UpdatePoints(const cgal::Mesh& from)
-{
+void TriangulatedGrid::UpdatePoints(const cgal::Mesh& from) {
   impl_->UpdatePoints(from);
-}
-
-//////////////////////////////////////////////////
-std::array<double, 2> TriangulatedGrid::TileSize() const
-{
-  return {impl_->lx_, impl_->ly_};
-}
-
-//////////////////////////////////////////////////
-std::array<Index, 2> TriangulatedGrid::CellCount() const
-{
-  return {impl_->nx_, impl_->ny_};
 }
 
 }  // namespace waves

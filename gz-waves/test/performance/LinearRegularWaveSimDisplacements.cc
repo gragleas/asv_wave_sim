@@ -23,6 +23,8 @@
 
 #include "gz/waves/LinearRegularWaveSimulation.hh"
 
+using Eigen::ArrayXXd;
+
 using std::chrono::steady_clock;
 using std::chrono::milliseconds;
 using std::chrono::duration_cast;

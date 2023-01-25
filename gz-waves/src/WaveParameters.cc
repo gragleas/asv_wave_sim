@@ -15,7 +15,6 @@
 
 #include "gz/waves/WaveParameters.hh"
 
-#include <array>
 #include <cmath>
 #include <iostream>
 #include <string>
@@ -58,10 +57,10 @@ class WaveParametersPrivate
   std::string algorithm_{"fft"};
 
   /// \brief The size of the wave tile.
-  std::array<double, 2> tile_size_{256.0, 256.0};
+  double tile_size_{256.0};
 
   /// \brief The size of the wave tile.
-  std::array<Index, 2> cell_count_{128, 128};
+  Index cell_count_{128};
 
   /// \brief The number of component waves.
   Index number_{1};
@@ -256,7 +255,7 @@ void WaveParameters::FillMsg(gz::msgs::Param_V& msg) const
 //////////////////////////////////////////////////
 void WaveParameters::SetFromMsg(const gz::msgs::Param_V& msg)
 {
-  /// \todo(srmainwaring) add missing entries
+  // todo(srmainwaring) add missing entries
   impl_->number_    = Utilities::MsgParamSizeT(
       msg,    "number",     impl_->number_);
   impl_->amplitude_ = Utilities::MsgParamDouble(
@@ -280,71 +279,12 @@ void WaveParameters::SetFromMsg(const gz::msgs::Param_V& msg)
 //////////////////////////////////////////////////
 void WaveParameters::SetFromSDF(sdf::Element& sdf)
 {
-  // find as vector2d or double
-  if (sdf.HasElement("tile_size"))
-  {
-    auto element = sdf.GetElement("tile_size");
-    auto param = element->GetValue();
-    bool found{false};
-    if (!found)
-    {
-      math::Vector2d value;
-      sdf::Errors errors;
-      if (param->Get(value, errors))
-      {
-        impl_->tile_size_ = {value[0], value[1]};
-        found = true;
-      }
-    }
-    if (!found)
-    {
-      double value;
-      sdf::Errors errors;
-      if (param->Get(value, errors))
-      {
-        impl_->tile_size_ = {value, value};
-        found = true;
-      }
-    }
-    gzmsg << "tile_size: "
-        << std::get<0>(impl_->tile_size_) << ", "
-        << std::get<1>(impl_->tile_size_) << "\n";
-  }
-
-  // find as vector2i or int
-  if (sdf.HasElement("cell_count"))
-  {
-    auto element = sdf.GetElement("cell_count");
-    auto param = element->GetValue();
-    bool found{false};
-    if (!found)
-    {
-      math::Vector2i value;
-      sdf::Errors errors;
-      if (param->Get(value, errors))
-      {
-        impl_->cell_count_ = {value[0], value[1]};
-        found = true;
-      }
-    }
-    if (!found)
-    {
-      int value;
-      sdf::Errors errors;
-      if (param->Get(value, errors))
-      {
-        Index index = value;
-        impl_->cell_count_ = {index, index};
-        found = true;
-      }
-    }
-    gzmsg << "cell_count: "
-        << std::get<0>(impl_->cell_count_) << ", "
-        << std::get<1>(impl_->cell_count_) << "\n";
-  }
-
   impl_->algorithm_     = Utilities::SdfParamString(
       sdf,    "algorithm",  impl_->algorithm_);
+  impl_->tile_size_      = Utilities::SdfParamDouble(
+      sdf,   "tile_size",  impl_->tile_size_);
+  impl_->cell_count_     = Utilities::SdfParamSizeT(
+      sdf,    "cell_count", impl_->tile_size_);
   impl_->number_        = Utilities::SdfParamSizeT(
       sdf,     "number",     impl_->number_);
   impl_->amplitude_     = Utilities::SdfParamDouble(
@@ -393,13 +333,13 @@ std::string WaveParameters::Algorithm() const
 }
 
 //////////////////////////////////////////////////
-std::array<double, 2> WaveParameters::TileSize() const
+double WaveParameters::TileSize() const
 {
   return impl_->tile_size_;
 }
 
 //////////////////////////////////////////////////
-std::array<Index, 2> WaveParameters::CellCount() const
+Index WaveParameters::CellCount() const
 {
   return impl_->cell_count_;
 }
@@ -504,27 +444,14 @@ void WaveParameters::SetAlgorithm(const std::string& value)
 //////////////////////////////////////////////////
 void WaveParameters::SetTileSize(double value)
 {
-  impl_->tile_size_ = {value, value};
-  impl_->Recalculate();
-}
-
-void WaveParameters::SetTileSize(double lx, double ly)
-{
-  impl_->tile_size_ = {lx, ly};
+  impl_->tile_size_ = value;
   impl_->Recalculate();
 }
 
 //////////////////////////////////////////////////
 void WaveParameters::SetCellCount(Index value)
 {
-  impl_->cell_count_ = {value, value};
-  impl_->Recalculate();
-}
-
-//////////////////////////////////////////////////
-void WaveParameters::SetCellCount(Index nx, Index ny)
-{
-  impl_->cell_count_ = {nx, ny};
+  impl_->cell_count_ = value;
   impl_->Recalculate();
 }
 

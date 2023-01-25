@@ -38,7 +38,7 @@
             <metal>
               <albedo_map>materials/water.jpg</albedo_map>
               <normal_map>materials/wave_normals.dds</normal_map>
-              <environment_map>materials/skybox_lowres.dds</environment_map>
+              <environment_map>materials/skybox_test.dds</environment_map>
               <roughness>0.3</roughness>
               <metalness>0.1</metalness>
             </metal>
@@ -146,7 +146,7 @@
           <param>
             <shader>fragment</shader>
             <name>cubeMap</name>
-            <value>materials/skybox_lowres.dds</value>
+            <value>materials/skybox_test.dds</value>
             <type>texture_cube</type>
             <arg>1</arg>
           </param>

@@ -20,6 +20,8 @@
 
 #include "gz/waves/WaveSimulation.hh"
 
+using Eigen::ArrayXXd;
+
 namespace gz
 {
 namespace waves
@@ -36,8 +38,6 @@ class LinearRandomFFTWaveSimulationRef :
     void SetLambda(double lambda);
 
     void SetWindVelocity(double ux, double uy) override;
-
-    void SetSteepness(double value) override;
 
     void SetTime(double value) override;
 

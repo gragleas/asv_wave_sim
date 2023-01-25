@@ -23,6 +23,8 @@
 #include <gz/rendering/config.hh>
 #include <gz/rendering/Export.hh>
 
+using Eigen::ArrayXXd;
+
 namespace gz
 {
 namespace rendering

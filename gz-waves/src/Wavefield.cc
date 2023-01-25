@@ -93,11 +93,9 @@ bool Wavefield::Height(const cgal::Point3& point, double& height) const
 {
   /// \todo(srmainwaring) the calculation assumes that the tile origin
   /// is at its center.
-  auto [lx, ly] = impl_->ocean_tile_->TileSize();
+  const double lx = impl_->ocean_tile_->TileSize();
 
-  // See this SO article covering the lambda capture of a structured binding.
-  // https://stackoverflow.com/questions/46114214/lambda-implicit-capture-fails-with-variable-declared-from-structured-binding
-  auto px_mod = [lx = lx](double x)
+  auto pmod = [&](double x)
   {
       if (x < 0.0)
         return std::fmod(x - lx/2.0, lx) + lx/2.0;
@@ -105,16 +103,8 @@ bool Wavefield::Height(const cgal::Point3& point, double& height) const
         return std::fmod(x + lx/2.0, lx) - lx/2.0;
   };
 
-  auto py_mod = [ly = ly](double y)
-  {
-      if (y < 0.0)
-        return std::fmod(y - ly/2.0, ly) + ly/2.0;
-      else
-        return std::fmod(y + ly/2.0, ly) - ly/2.0;
-  };
-
   // Obtain the point modulo the tile dimensions
-  cgal::Point3 modulo_point(px_mod(point.x()), py_mod(point.y()), point.z());
+  cgal::Point3 modulo_point(pmod(point.x()), pmod(point.y()), point.z());
 
   return impl_->tri_grid_->Height(modulo_point, height);
 }
@@ -131,21 +121,21 @@ void Wavefield::SetParameters(std::shared_ptr<WaveParameters> params)
   impl_->params_ = params;
 
   // Force an update of the ocean tile and point locator
-  auto [nx, ny] = impl_->params_->CellCount();
-  auto [lx, ly] = impl_->params_->TileSize();
+  Index nx = impl_->params_->CellCount();
+  double lx = impl_->params_->TileSize();
   double u = impl_->params_->WindVelocity().X();
   double v = impl_->params_->WindVelocity().Y();
 
   // OceanTile
-  gzmsg << "Creating OceanTile.\n";
+  gzmsg << "Creating OceanTile." <<  std::endl;
   impl_->ocean_tile_.reset(new physics::OceanTile(
       impl_->params_, false));
   impl_->ocean_tile_->SetWindVelocity(u, v);
   impl_->ocean_tile_->Create();
 
   // Point Locator
-  gzmsg << "Creating triangulated grid.\n";
-  auto grid = TriangulatedGrid::Create(nx, ny, lx, ly);
+  gzmsg << "Creating triangulated grid." <<  std::endl;
+  auto grid = TriangulatedGrid::Create(nx, lx);
   impl_->tri_grid_ = std::move(grid);
 }
 
@@ -169,6 +159,12 @@ void WavefieldPrivate::OnWaveMsg(const gz::msgs::Param& msg)
   std::lock_guard<std::recursive_mutex> lock(mutex_);
 
   // gzmsg << msg.DebugString();
+
+  // // Get parameters from message
+  // double wind_angle = 0.0;
+  // double wind_speed = 0.0;
+  // wind_angle = Utilities::MsgParamDouble(*msg, "wind_angle", wind_angle);
+  // wind_speed = Utilities::MsgParamDouble(*msg, "wind_speed", wind_speed);
 
   // current wind speed and angle
   double wind_speed = params_->WindSpeed();
@@ -217,8 +213,6 @@ void WavefieldPrivate::OnWaveMsg(const gz::msgs::Param& msg)
   ocean_tile_->SetWindVelocity(
       params_->WindVelocity().X(),
       params_->WindVelocity().Y());
-  ocean_tile_->SetSteepness(
-      params_->Steepness());
 }
 
 }  // namespace waves

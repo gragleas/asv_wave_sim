@@ -25,6 +25,8 @@
 #include <gz/waves/WaveSimulation.hh>
 #include <gz/waves/WaveSpectrum.hh>
 
+using Eigen::ArrayXd;
+
 using gz::waves::Index;
 using gz::waves::ECKVWaveSpectrum;
 using gz::waves::PiersonMoskowitzWaveSpectrum;
@@ -54,11 +56,10 @@ int main(int /*argc*/, const char **/*argv*/)
       ECKVWaveSpectrum spectrum;
 
       Index nk = 200;
-      Eigen::ArrayXd k =
-          Eigen::pow(10.0, Eigen::ArrayXd::LinSpaced(nk, -3.0, 4.0));
+      Eigen::ArrayXd k = Eigen::pow(10.0, ArrayXd::LinSpaced(nk, -3.0, 4.0));
 
       Index nu = 5;
-      Eigen::ArrayXd u10 = Eigen::ArrayXd::LinSpaced(nu, 0.0, 20.0);
+      Eigen::ArrayXd u10 = ArrayXd::LinSpaced(nu, 0.0, 20.0);
 
       std::vector<double> pts_k;
       std::vector<std::vector<double>> pts_s(u10.size());
@@ -106,11 +107,10 @@ int main(int /*argc*/, const char **/*argv*/)
       PiersonMoskowitzWaveSpectrum spectrum;
 
       Index nk = 200;
-      Eigen::ArrayXd k =
-          Eigen::pow(10.0, Eigen::ArrayXd::LinSpaced(nk, -3.0, 4.0));
+      Eigen::ArrayXd k = Eigen::pow(10.0, ArrayXd::LinSpaced(nk, -3.0, 4.0));
 
       Index nu = 5;
-      Eigen::ArrayXd u19 = Eigen::ArrayXd::LinSpaced(nu, 0.0, 20.0);
+      Eigen::ArrayXd u19 = ArrayXd::LinSpaced(nu, 0.0, 20.0);
 
       std::vector<double> pts_k;
       std::vector<std::vector<double>> pts_s(u19.size());

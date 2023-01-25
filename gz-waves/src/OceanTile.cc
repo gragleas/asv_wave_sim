@@ -17,7 +17,6 @@
 
 #include <Eigen/Dense>
 
-#include <array>
 #include <cmath>
 #include <iostream>
 #include <vector>
@@ -66,25 +65,30 @@ class OceanTilePrivate
 
   ~OceanTilePrivate();
 
-  explicit OceanTilePrivate(Index nx, Index ny, double lx, double ly,
-      bool has_visuals = true);
+  explicit OceanTilePrivate(Index nx, double lx, bool has_visuals = true);
 
   explicit OceanTilePrivate(WaveParametersPtr params, bool has_visuals = true);
 
   void SetWindVelocity(double ux, double uy);
-  void SetSteepness(double value);
 
   bool                        has_visuals_;
-  /// \brief FFT size (nx, ny must be a power of 2)
+  /// \brief FFT size (nx is power of 2)
   Index                       nx_;
-  Index                       ny_;
 
-  /// \brief Total number of faces 2 * nx * ny
+  /// \brief Number of vertices per row (nx+1)
+  Index                       row_length_;
+
+  /// \brief Total number of vertices (nx+1)^2
+  Index                       num_vertices_;
+
+  /// \brief Total number of faces 2 * nx^2
   Index                       num_faces_;
 
-  /// \brief Tile size in world units (m)
-  double                      lx_;
-  double                      ly_;
+  /// \brief Tile size in world units
+  double                      tile_size_;
+
+  /// \brief Space between vertices
+  double                      spacing_;
 
   std::vector<Vector3>        vertices0_;
   std::vector<Vector3>        vertices_;
@@ -163,9 +167,9 @@ class OceanTilePrivate
 
   /// \brief Update a vertex and it's tangent space.
   ///
-  /// \param v_idx  is the index for the (nx + 1) * (ny + 1) mesh vertices,
+  /// \param v_idx  is the index for the (nx + 1) x (nx + 1) mesh vertices,
   ///               including skirt
-  /// \param w_idx  is the index for the nx * ny simulated vertices
+  /// \param w_idx  is the index for the nx x nx simulated vertices
   void UpdateVertex(Index v_idx, Index w_idx);
   void UpdateVertexAndTangents(Index v_idx, Index w_idx);
   void UpdateVertices(double time);
@@ -186,18 +190,17 @@ OceanTilePrivate<Vector3>::~OceanTilePrivate()
 template <typename Vector3>
 OceanTilePrivate<Vector3>::OceanTilePrivate(
     Index nx,
-    Index ny,
     double lx,
-    double ly,
     bool has_visuals) :
     has_visuals_(has_visuals),
     nx_(nx),
-    ny_(ny),
-    num_faces_(2 * nx * ny),
-    lx_(lx),
-    ly_(ly)
+    row_length_(nx + 1),
+    num_vertices_((nx + 1) * (nx + 1)),
+    num_faces_(2 * nx * nx),
+    tile_size_(lx),
+    spacing_(lx / static_cast<double>(nx))
 {
-  auto size = nx_ * ny_;
+  auto size = nx * nx;
   heights_ = Eigen::ArrayXd::Zero(size);
   dhdx_ = Eigen::ArrayXd::Zero(size);
   dhdy_ = Eigen::ArrayXd::Zero(size);
@@ -223,7 +226,7 @@ OceanTilePrivate<Vector3>::OceanTilePrivate(
       double amplitude = 3.0;
       double period = 10.0;
       std::unique_ptr<LinearRegularWaveSimulation> wave_sim(
-          new LinearRegularWaveSimulation(lx_, ly_, nx_, ny_));
+          new LinearRegularWaveSimulation(lx, lx, nx, nx));
       wave_sim->SetDirection(dir_x, dir_y);
       wave_sim->SetAmplitude(amplitude);
       wave_sim->SetPeriod(period);
@@ -241,15 +244,14 @@ OceanTilePrivate<Vector3>::OceanTilePrivate(
       wave_params->SetAmplitude(3.0);
       wave_params->SetPeriod(7.0);
       wave_params->SetDirection(gz::math::Vector2d(1.0, 0.0));
-      wave_sim_.reset(new TrochoidIrregularWaveSimulation(
-          nx_, lx_, wave_params));
+      wave_sim_.reset(new TrochoidIrregularWaveSimulation(nx, lx, wave_params));
       break;
     }
     case 2:
     {
       // FFT2
       std::unique_ptr<LinearRandomFFTWaveSimulation> wave_sim(
-          new LinearRandomFFTWaveSimulation(lx_, ly_, nx_, ny_));
+          new LinearRandomFFTWaveSimulation(lx, lx, nx, nx));
       wave_sim->SetLambda(1.0);   // larger lambda => steeper waves.
       wave_sim_ = std::move(wave_sim);
       break;
@@ -265,13 +267,17 @@ OceanTilePrivate<Vector3>::OceanTilePrivate(
     WaveParametersPtr params,
     bool has_visuals) :
     has_visuals_(has_visuals),
-    nx_(std::get<0>(params->CellCount())),
-    ny_(std::get<1>(params->CellCount())),
-    num_faces_(2 * nx_ * ny_),
-    lx_(std::get<0>(params->TileSize())),
-    ly_(std::get<1>(params->TileSize()))
+    nx_(params->CellCount()),
+    row_length_(params->CellCount() + 1),
+    num_vertices_((params->CellCount() + 1) * (params->CellCount() + 1)),
+    num_faces_(2 * params->CellCount() * params->CellCount()),
+    tile_size_(params->TileSize()),
+    spacing_(params->TileSize() / static_cast<double>(params->CellCount()))
 {
-  auto size = nx_ * ny_;
+  Index nx = params->CellCount();
+  double lx = params->TileSize();
+
+  auto size = nx * nx;
   heights_ = Eigen::ArrayXd::Zero(size);
   dhdx_ = Eigen::ArrayXd::Zero(size);
   dhdy_ = Eigen::ArrayXd::Zero(size);
@@ -322,7 +328,7 @@ OceanTilePrivate<Vector3>::OceanTilePrivate(
       double amplitude = params->Amplitude();
       double period = params->Period();
       std::unique_ptr<LinearRegularWaveSimulation> wave_sim(
-          new LinearRegularWaveSimulation(lx_, ly_, nx_, ny_));
+          new LinearRegularWaveSimulation(lx, lx, nx, nx));
       wave_sim->SetDirection(dir_x, dir_y);
       wave_sim->SetAmplitude(amplitude);
       wave_sim->SetPeriod(period);
@@ -332,14 +338,14 @@ OceanTilePrivate<Vector3>::OceanTilePrivate(
     case 1:
     {
       // Trochoid
-      wave_sim_.reset(new TrochoidIrregularWaveSimulation(nx_, lx_, params));
+      wave_sim_.reset(new TrochoidIrregularWaveSimulation(nx, lx, params));
       break;
     }
     case 2:
     {
       // Linear Random FFT (ECKV / Cos2s)
       std::unique_ptr<LinearRandomFFTWaveSimulation> wave_sim(
-          new LinearRandomFFTWaveSimulation(lx_, ly_, nx_, ny_));
+          new LinearRandomFFTWaveSimulation(lx, lx, nx, nx));
 
       // larger lambda => steeper waves.
       wave_sim->SetLambda(params->Steepness());
@@ -348,13 +354,9 @@ OceanTilePrivate<Vector3>::OceanTilePrivate(
     }
     case 3:
     {
-      Index num_waves = params->Number();
-
       // Linear Random (Pierson-Moskowitz)
       std::unique_ptr<LinearRandomWaveSimulation> wave_sim(
-          new LinearRandomWaveSimulation(lx_, ly_, nx_, ny_));
-      wave_sim->SetNumWaves(num_waves);
-
+          new LinearRandomWaveSimulation(lx, lx, nx, nx));
       wave_sim_ = std::move(wave_sim);
       break;
     }
@@ -372,43 +374,41 @@ void OceanTilePrivate<Vector3>::SetWindVelocity(double ux, double uy)
 
 //////////////////////////////////////////////////
 template <typename Vector3>
-void OceanTilePrivate<Vector3>::SetSteepness(double value)
-{
-  wave_sim_->SetSteepness(value);
-}
-
-//////////////////////////////////////////////////
-template <typename Vector3>
 void OceanTilePrivate<Vector3>::Create()
 {
-  // Grid dimensions
-  const double dx = lx_ / static_cast<double>(nx_);
-  const double dy = ly_ / static_cast<double>(ny_);
-
   gzmsg << "OceanTile: create tile\n";
-  gzmsg << "Resolution:    " << nx_  << ", " << ny_ << "\n";
-  gzmsg << "NumFaces:      " << num_faces_ << "\n";
-  gzmsg << "TileSize:      " << lx_ << ", " << ly_ << "\n";
-  gzmsg << "Spacing:       " << dx << ", " << dy << "\n";
+  gzmsg << "Resolution:    " << nx_  << "\n";
+  gzmsg << "RowLength:     " << row_length_   << "\n";
+  gzmsg << "NumVertices:   " << num_vertices_ << "\n";
+  gzmsg << "NumFaces:      " << num_faces_    << "\n";
+  gzmsg << "TileSize:      " << tile_size_    << "\n";
+  gzmsg << "Spacing:       " << spacing_     << "\n";
 
+  // Grid dimensions
+  const Index nx = nx_;
+  const Index ny = nx_;
+  const double lx = tile_size_;
+  const double ly = tile_size_;
+  const double dx = spacing_;
+  const double dy = spacing_;
   // Here we are actually mapping (u, v) to each quad in the tile
   // (not the entire tile).
   // const double x_tex = 1.0 * lx;
   // const double y_tex = 1.0 * ly;
   /// \todo add param to tune bump map scaling
   double tex_scale = 0.1;
-  const double x_tex = tex_scale * dx;
-  const double y_tex = tex_scale * dy;
+  const double x_tex = tex_scale * lx / nx;
+  const double y_tex = tex_scale * ly / ny;
 
   gzmsg << "OceanTile: calculating vertices\n";
-  // Vertices - (nx+1) / (ny+1) vertices in each row / column
-  for (Index iy=0; iy <= ny_; ++iy)
+  // Vertices - (nx+1) vertices in each row / column
+  for (Index iy=0; iy <= ny; ++iy)
   {
-    double py = iy * dy - ly_ / 2.0;
-    for (Index ix=0; ix <= nx_; ++ix)
+    double py = iy * dy - ly/2.0;
+    for (Index ix=0; ix <= nx; ++ix)
     {
       // Vertex position
-      double px = ix * dx - lx_ / 2.0;
+      double px = ix * dx - lx/2.0;
 
       Vector3 vertex(px, py, 0);
       vertices0_.push_back(vertex);
@@ -421,15 +421,15 @@ void OceanTilePrivate<Vector3>::Create()
 
   gzmsg << "OceanTile: calculating indices\n";
   // Indices
-  for (Index iy=0; iy < ny_; ++iy)
+  for (Index iy=0; iy < ny; ++iy)
   {
-    for (Index ix=0; ix < nx_; ++ix)
+    for (Index ix=0; ix < nx; ++ix)
     {
       // Get the vertices in the cell coordinates
-      const Index idx0 = iy * (nx_ + 1) + ix;
-      const Index idx1 = iy * (nx_ + 1) + ix + 1;
-      const Index idx2 = (iy + 1) * (nx_ + 1) + ix + 1;
-      const Index idx3 = (iy + 1) * (nx_ + 1) + ix;
+      const Index idx0 = iy * (nx+1) + ix;
+      const Index idx1 = iy * (nx+1) + ix + 1;
+      const Index idx2 = (iy+1) * (nx+1) + ix + 1;
+      const Index idx3 = (iy+1) * (nx+1) + ix;
 
       // Indices
       faces_.push_back(gz::math::Vector3i(idx0, idx1, idx2));
@@ -797,88 +797,86 @@ void OceanTilePrivate<Vector3>::UpdateVertices(double time)
         heights_, sx_, sy_,
         dhdx_, dhdy_, dsxdx_, dsydy_, dsxdy_);
 
-    // const Index nx = nx_;
-    // const Index ny = ny_;
-    const Index nx_plus1  = nx_ + 1;
-    const Index ny_plus1  = ny_ + 1;
+    const Index nx = nx_;
+    const Index nx_plus1  = nx + 1;
 
-    for (Index iy=0; iy < ny_; ++iy)
+    for (Index iy=0; iy < nx; ++iy)
     {
-      for (Index ix=0; ix < nx_; ++ix)
+      for (Index ix=0; ix < nx; ++ix)
       {
         Index v_idx_cm = iy * nx_plus1 + ix;
-        Index w_idx_cm = iy * nx_ + ix;
+        Index w_idx_cm = iy * nx + ix;
+        // Index w_idx_rm = ix * nx + iy;
         UpdateVertexAndTangents(v_idx_cm, w_idx_cm);
       }
     }
 
     // Set skirt values assuming periodic boundary conditions:
-    for (Index ix=0; ix < nx_; ++ix)
+    for (Index i=0; i < nx; ++i)
     {
       // Top row (iy = nx) periodic with bottom row (iy = 0)
       {
-        Index v_idx_cm = ny_ * nx_plus1 + ix;
-        Index w_idx_cm = ix;
+        Index v_idx_cm = nx * nx_plus1 + i;
+        Index w_idx_cm = i;
+        // Index w_idx_rm = i * nx;
         UpdateVertexAndTangents(v_idx_cm, w_idx_cm);
       }
-    }
-    for (Index iy=0; iy < ny_; ++iy)
-    {
       // Right column (ix = nx) periodic with left column (ix = 0)
       {
-        Index v_idx_cm = iy * nx_plus1 + nx_;
-        Index w_idx_cm = iy * nx_;
+        Index v_idx_cm = i * nx_plus1 + nx;
+        Index w_idx_cm = i * nx;
+        // Index w_idx_rm = i;
         UpdateVertexAndTangents(v_idx_cm, w_idx_cm);
       }
     }
     {
       // Top right corner period with bottom right corner.
-      Index v_idx_cm = nx_plus1 * ny_plus1 - 1;
+      Index v_idx_cm = nx_plus1 * nx_plus1 - 1;
       Index w_idx_cm = 0;
+      // Index w_idx_rm = 0;
       UpdateVertexAndTangents(v_idx_cm, w_idx_cm);
     }
   } else {
     wave_sim_->ElevationAt(heights_);
     wave_sim_->DisplacementAt(sx_, sy_);
 
-    // const Index nx = nx_;
-    // const Index ny = ny_;
-    const Index nx_plus1  = nx_ + 1;
-    const Index ny_plus1  = ny_ + 1;
+    const Index nx = nx_;
+    const Index nx_plus1  = nx + 1;
 
-    for (Index iy=0; iy < ny_; ++iy)
+    for (Index iy=0; iy < nx; ++iy)
     {
-      for (Index ix=0; ix < nx_; ++ix)
+      for (Index ix=0; ix < nx; ++ix)
       {
         Index v_idx_cm = iy * nx_plus1 + ix;
-        Index w_idx_cm = iy * nx_ + ix;
+        Index w_idx_cm = iy * nx + ix;
+        // Index w_idx_rm = ix * nx + iy;
         UpdateVertex(v_idx_cm, w_idx_cm);
       }
     }
 
     // Set skirt values assuming periodic boundary conditions:
-    for (Index ix=0; ix < nx_; ++ix)
+    for (Index i=0; i < nx; ++i)
     {
       // Top row (iy = nx) periodic with bottom row (iy = 0)
       {
-        Index v_idx_cm = ny_ * nx_plus1 + ix;
-        Index w_idx_cm = ix;
+        Index v_idx_cm = nx * nx_plus1 + i;
+        Index w_idx_cm = i;
+        // Index w_idx_rm = i * nx;
         UpdateVertex(v_idx_cm, w_idx_cm);
       }
-    }
-    for (Index iy=0; iy < ny_; ++iy)
-    {
       // Right column (ix = nx) periodic with left column (ix = 0)
       {
-        Index v_idx_cm = iy * nx_plus1 + nx_;
-        Index w_idx_cm = iy * nx_;
+        Index v_idx_cm = i * nx_plus1 + nx;
+        Index w_idx_cm = i * nx;
+        // Index w_idx_rm = i;
         UpdateVertex(v_idx_cm, w_idx_cm);
       }
     }
     {
       // Top right corner period with bottom right corner.
-      Index v_idx_cm = nx_plus1 * ny_plus1 - 1;
+      Index v_idx_cm = nx_plus1 * nx_plus1 - 1;
       Index w_idx_cm = 0;
+      // Index w_idx_rm = 0;
       UpdateVertex(v_idx_cm, w_idx_cm);
     }
   }
@@ -998,9 +996,9 @@ OceanTileT<gz::math::Vector3d>::~OceanTileT()
 //////////////////////////////////////////////////
 template <>
 OceanTileT<gz::math::Vector3d>::OceanTileT(
-    Index nx, Index ny, double lx, double ly, bool has_visuals) :
+    Index nx, double lx, bool has_visuals) :
     impl_(std::make_unique<OceanTilePrivate<gz::math::Vector3d>>(
-        nx, ny, lx, ly, has_visuals))
+        nx, lx, has_visuals))
 {
 }
 
@@ -1022,23 +1020,16 @@ void OceanTileT<gz::math::Vector3d>::SetWindVelocity(double ux, double uy)
 
 //////////////////////////////////////////////////
 template <>
-void OceanTileT<gz::math::Vector3d>::SetSteepness(double value)
+double OceanTileT<gz::math::Vector3d>::TileSize() const
 {
-  impl_->SetSteepness(value);
+  return impl_->tile_size_;
 }
 
 //////////////////////////////////////////////////
 template <>
-std::array<double, 2> OceanTileT<gz::math::Vector3d>::TileSize() const
+Index OceanTileT<gz::math::Vector3d>::Resolution() const
 {
-  return {impl_->lx_, impl_->ly_};
-}
-
-//////////////////////////////////////////////////
-template <>
-std::array<Index, 2> OceanTileT<gz::math::Vector3d>::CellCount() const
-{
-  return {impl_->nx_, impl_->ny_};
+  return impl_->nx_;
 }
 
 //////////////////////////////////////////////////
@@ -1127,9 +1118,9 @@ OceanTileT<cgal::Point3>::~OceanTileT()
 //////////////////////////////////////////////////
 template <>
 OceanTileT<cgal::Point3>::OceanTileT(
-    Index nx, Index ny, double lx, double ly, bool has_visuals) :
+    Index nx, double lx, bool has_visuals) :
     impl_(std::make_unique<OceanTilePrivate<cgal::Point3>>(
-        nx, ny, lx, ly, has_visuals))
+        nx, lx, has_visuals))
 {
 }
 
@@ -1151,23 +1142,16 @@ void OceanTileT<cgal::Point3>::SetWindVelocity(double ux, double uy)
 
 //////////////////////////////////////////////////
 template <>
-void OceanTileT<cgal::Point3>::SetSteepness(double value)
+double OceanTileT<cgal::Point3>::TileSize() const
 {
-  impl_->SetSteepness(value);
+  return impl_->tile_size_;
 }
 
 //////////////////////////////////////////////////
 template <>
-std::array<double, 2> OceanTileT<cgal::Point3>::TileSize() const
+Index OceanTileT<cgal::Point3>::Resolution() const
 {
-  return {impl_->lx_, impl_->ly_};
-}
-
-//////////////////////////////////////////////////
-template <>
-std::array<Index, 2> OceanTileT<cgal::Point3>::CellCount() const
-{
-  return {impl_->nx_, impl_->ny_};
+  return impl_->nx_;
 }
 
 //////////////////////////////////////////////////

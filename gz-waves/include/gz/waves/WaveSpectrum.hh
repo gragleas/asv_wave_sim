@@ -18,6 +18,8 @@
 
 #include <Eigen/Dense>
 
+using Eigen::ArrayXXd;
+
 namespace gz
 {
 namespace waves

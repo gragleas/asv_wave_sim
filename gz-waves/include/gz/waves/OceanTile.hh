@@ -16,7 +16,6 @@
 #ifndef GZ_WAVES_OCEANTILE_HH_
 #define GZ_WAVES_OCEANTILE_HH_
 
-#include <array>
 #include <memory>
 #include <vector>
 
@@ -41,21 +40,17 @@ class OceanTileT
  public:
   virtual ~OceanTileT();
 
-  explicit OceanTileT(Index nx, Index ny, double lx, double ly,
-      bool has_visuals = true);
+  explicit OceanTileT(Index nx, double lx, bool has_visuals = true);
 
   explicit OceanTileT(WaveParametersPtr params, bool has_visuals = true);
 
-  /// \brief The size of the wave tile (m).
-  std::array<double, 2> TileSize() const;
+  /// \brief The tile size (or length) lx.
+  double TileSize() const;
 
-  /// \brief The number of cells in the wave tile in each direction.
-  /// The tile contains (nx + 1) * (ny + 1) vertices.
-  std::array<Index, 2> CellCount() const;
+  /// \brief The tile resolution (nx). The tile contains (nx + 1)**2 vertices.
+  Index Resolution() const;
 
   void SetWindVelocity(double ux, double uy);
-
-  void SetSteepness(double value);
 
   void Create();
 

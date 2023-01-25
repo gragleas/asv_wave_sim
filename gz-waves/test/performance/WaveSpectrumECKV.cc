@@ -24,6 +24,8 @@
 
 #include "gz/waves/WaveSpectrum.hh"
 
+using Eigen::ArrayXXd;
+
 namespace Eigen
 {
   typedef Eigen::Array<

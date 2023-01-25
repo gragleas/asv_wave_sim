@@ -84,12 +84,6 @@ namespace waves
   }
 
   //////////////////////////////////////////////////
-  void LinearRandomFFTWaveSimulationRef::Impl::SetSteepness(double value)
-  {
-    lambda_ = value;
-  }
-
-  //////////////////////////////////////////////////
   void LinearRandomFFTWaveSimulationRef::Impl::SetTime(double time)
   {
     ComputeCurrentAmplitudes(time);
@@ -762,12 +756,6 @@ namespace waves
   void LinearRandomFFTWaveSimulationRef::SetWindVelocity(double ux, double uy)
   {
     impl_->SetWindVelocity(ux, uy);
-  }
-
-  //////////////////////////////////////////////////
-  void LinearRandomFFTWaveSimulationRef::SetSteepness(double value)
-  {
-    impl_->SetSteepness(value);
   }
 
   //////////////////////////////////////////////////

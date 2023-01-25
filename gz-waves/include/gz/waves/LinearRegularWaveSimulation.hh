@@ -16,11 +16,13 @@
 #ifndef GZ_WAVES_LINEARREGULARWAVESIMULATION_HH_
 #define GZ_WAVES_LINEARREGULARWAVESIMULATION_HH_
 
-#include <Eigen/Dense>
-
 #include <memory>
 
+#include <Eigen/Dense> // NOLINT - cpplint false positive.
+
 #include "gz/waves/WaveSimulation.hh"
+
+using Eigen::ArrayXXd;
 
 namespace gz
 {
@@ -60,8 +62,6 @@ class LinearRegularWaveSimulation :
   void SetPeriod(double value);
 
   void SetWindVelocity(double ux, double uy) override;
-
-  void SetSteepness(double value) override;
 
   void SetTime(double value) override;
 

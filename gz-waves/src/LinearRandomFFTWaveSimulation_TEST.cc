@@ -26,6 +26,8 @@
 #include "LinearRandomFFTWaveSimulationImpl.hh"
 #include "LinearRandomFFTWaveSimulationRefImpl.hh"
 
+using Eigen::ArrayXXd;
+
 using gz::waves::Index;
 using gz::waves::LinearRandomFFTWaveSimulation;
 using gz::waves::LinearRandomFFTWaveSimulationRef;

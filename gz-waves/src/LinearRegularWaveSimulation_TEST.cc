@@ -32,6 +32,11 @@
 #include "gz/waves/Types.hh"
 #include "gz/waves/WaveSpectrum.hh"
 
+// using namespace gz;
+// using namespace waves;
+
+using Eigen::ArrayXXd;
+
 using gz::waves::Index;
 using gz::waves::IWaveSimulation;
 using gz::waves::LinearRegularWaveSimulation;
@@ -474,7 +479,7 @@ TEST(OceanTile, LinearRegularWaveSimulation)
   double time = 0.0;
 
   // Ocean tile (in server mode)
-  std::unique_ptr<OceanTile> oceanTile(new OceanTile(N, N, L, L, false));
+  std::unique_ptr<OceanTile> oceanTile(new OceanTile(N, L, false));
   oceanTile->SetWindVelocity(25.0, 0.0);
   oceanTile->Create();
 

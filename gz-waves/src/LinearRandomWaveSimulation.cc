@@ -491,12 +491,6 @@ void LinearRandomWaveSimulation::SetWindVelocity(double ux, double uy)
 }
 
 //////////////////////////////////////////////////
-void LinearRandomWaveSimulation::SetSteepness(double value)
-{
-  /// \todo(srmainwaring) IMPLEMENT
-}
-
-//////////////////////////////////////////////////
 void LinearRandomWaveSimulation::SetTime(double value)
 {
   impl_->SetTime(value);

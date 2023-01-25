@@ -26,6 +26,11 @@
 #include "gz/waves/WaveSimulation.hh"
 #include "gz/waves/LinearRandomFFTWaveSimulation.hh"
 
+using Eigen::ArrayXXcd;
+using Eigen::ArrayXXd;
+using Eigen::ArrayXcd;
+using Eigen::ArrayXd;
+
 namespace Eigen
 {
   typedef Eigen::Array<
@@ -75,8 +80,6 @@ class LinearRandomFFTWaveSimulation::Impl
 
   /// \brief Set the components of the wind velocity (U10) in [m/s]
   void SetWindVelocity(double ux, double uy);
-
-  void SetSteepness(double value);
 
   /// \brief Set the current time in seconds
   void SetTime(double value);

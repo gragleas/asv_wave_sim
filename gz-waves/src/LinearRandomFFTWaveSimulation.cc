@@ -88,12 +88,6 @@ void LinearRandomFFTWaveSimulation::Impl::SetWindVelocity(
 }
 
 //////////////////////////////////////////////////
-void LinearRandomFFTWaveSimulation::Impl::SetSteepness(double value)
-{
-  lambda_ = value;
-}
-
-//////////////////////////////////////////////////
 void LinearRandomFFTWaveSimulation::Impl::SetTime(double time)
 {
   ComputeCurrentAmplitudes(time);
@@ -692,12 +686,6 @@ void LinearRandomFFTWaveSimulation::SetLambda(double value)
 void LinearRandomFFTWaveSimulation::SetWindVelocity(double ux, double uy)
 {
   impl_->SetWindVelocity(ux, uy);
-}
-
-//////////////////////////////////////////////////
-void LinearRandomFFTWaveSimulation::SetSteepness(double value)
-{
-  impl_->SetSteepness(value);
 }
 
 //////////////////////////////////////////////////

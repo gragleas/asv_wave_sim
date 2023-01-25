@@ -591,8 +591,8 @@ void WavesVisualPrivate::OnUpdate()
   double simTime = this->currentSimTimeSeconds;
 
   // ocean tile parameters
-  auto [nx, ny] = this->waveParams->CellCount();
-  auto [lx, ly] = this->waveParams->TileSize();
+  // waves::Index N = this->waveParams->CellCount();
+  double L = this->waveParams->TileSize();
   double ux = this->waveParams->WindVelocity().X();
   double uy = this->waveParams->WindVelocity().Y();
 
@@ -644,8 +644,8 @@ void WavesVisualPrivate::OnUpdate()
           {
             // tile position
             gz::math::Vector3d tilePosition(
-              position.X() + ix * lx,
-              position.Y() + iy * ly,
+              position.X() + ix * L,
+              position.Y() + iy * L,
               position.Z() + 0.0);
 
 #define GZ_WAVES_UPDATE_VISUALS 1
@@ -702,11 +702,9 @@ void WavesVisualPrivate::OnUpdate()
 
       if (this->waveParamsDirty)
       {
-        this->oceanTile->SetWindVelocity(
-            this->waveParams->WindVelocity().X(),
-            this->waveParams->WindVelocity().Y());
-        this->oceanTile->SetSteepness(
-            this->waveParams->Steepness());
+        double newUx = this->waveParams->WindVelocity().X();
+        double newUy = this->waveParams->WindVelocity().Y();
+        this->oceanTile->SetWindVelocity(newUx, newUy);
         this->waveParamsDirty = false;
       }
 
@@ -755,8 +753,8 @@ void WavesVisualPrivate::OnUpdate()
           {
             // tile position
             gz::math::Vector3d tilePosition(
-              position.X() + ix * lx,
-              position.Y() + iy * ly,
+              position.X() + ix * L,
+              position.Y() + iy * L,
               position.Z() + 0.0);
 
             /// \note: replaced with cloned geometry from primary visual
@@ -785,11 +783,14 @@ void WavesVisualPrivate::OnUpdate()
 
       if (this->waveParamsDirty)
       {
-        this->mWaveSim->SetWindVelocity(
-            this->waveParams->WindVelocity().X(),
-            this->waveParams->WindVelocity().Y());
-        this->mWaveSim->SetSteepness(
-            this->waveParams->Steepness());
+        double newUx = this->waveParams->WindVelocity().X();
+        double newUy = this->waveParams->WindVelocity().Y();
+        // double s  = this->waveParams->Steepness();
+
+        // set params
+        this->mWaveSim->SetWindVelocity(newUx, newUy);
+        // waveSim->SetLambda(s);
+
         this->waveParamsDirty = false;
       }
 
@@ -898,21 +899,21 @@ void WavesVisualPrivate::CreateShaderMaterial()
 //////////////////////////////////////////////////
 void WavesVisualPrivate::InitWaveSim()
 {
-  auto [nx, ny] = this->waveParams->CellCount();
-  auto [lx, ly] = this->waveParams->TileSize();
+  waves::Index N = this->waveParams->CellCount();
+  double L   = this->waveParams->TileSize();
   double ux  = this->waveParams->WindVelocity().X();
   double uy  = this->waveParams->WindVelocity().Y();
   double s   = this->waveParams->Steepness();
 
   // create wave model
   std::unique_ptr<gz::waves::LinearRandomFFTWaveSimulation> waveSim(
-      new gz::waves::LinearRandomFFTWaveSimulation(lx, ly, nx, ny));
+      new gz::waves::LinearRandomFFTWaveSimulation(L, L, N, N));
 
   // set params
   waveSim->SetWindVelocity(ux, uy);
   waveSim->SetLambda(s);
 
-  waves::Index N2 = nx * ny;
+  waves::Index N2 = N * N;
   this->mHeights = Eigen::ArrayXd::Zero(N2);
   this->mDisplacementsX = Eigen::ArrayXd::Zero(N2);
   this->mDisplacementsY = Eigen::ArrayXd::Zero(N2);
@@ -1082,12 +1083,12 @@ void WavesVisualPrivate::InitTextures()
   gzmsg << "WavesVisualPrivate::InitTextures\n";
 
   // ocean tile parameters
-  auto [nx, ny] = this->waveParams->CellCount();
+  uint32_t N = static_cast<uint32_t>(this->waveParams->CellCount());
 
   rendering::SceneNodeFactoryPtr sceneNodeFactory =
       this->extension->SceneNodeFactory();
   this->displacementMap = sceneNodeFactory->CreateDisplacementMap(
-    this->scene, this->oceanMaterial, this->entity, nx, ny);
+    this->scene, this->oceanMaterial, this->entity, N, N);
   this->displacementMap->InitTextures();
 }
 
